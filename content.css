@@ -1,0 +1,157 @@
+/* 飞书文档转存 - 样式（前缀 fxfer- 避免冲突） */
+
+.fxfer-btn {
+  position: fixed;
+  right: 24px;
+  bottom: 88px;
+  z-index: 2147483600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 20px;
+  background: #3370ff;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  box-shadow: 0 4px 14px rgba(51, 112, 255, .38);
+  cursor: pointer;
+  user-select: none;
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+.fxfer-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(51, 112, 255, .45); }
+.fxfer-btn.fxfer-disabled { opacity: .55; pointer-events: none; }
+
+.fxfer-panel {
+  position: fixed;
+  right: 24px;
+  bottom: 140px;
+  z-index: 2147483601;
+  width: 400px;
+  max-height: min(78vh, 640px);
+  overflow: auto;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(31, 35, 41, .18);
+  padding: 14px 16px;
+  font-size: 13px;
+  color: #1f2329;
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+.fxfer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; }
+.fxfer-title { font-weight: 600; font-size: 14px; }
+.fxfer-ver { font-weight: 400; color: #8f959e; margin-left: 4px; }
+.fxfer-cancel { cursor: pointer; color: #d83931; font-size: 12px; margin-left: auto; margin-right: 4px; }
+.fxfer-close { cursor: pointer; color: #8f959e; font-size: 18px; line-height: 1; padding: 0 2px; }
+.fxfer-close:hover { color: #1f2329; }
+.fxfer-status { margin: 6px 0 8px; line-height: 1.5; word-break: break-all; }
+.fxfer-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #f0f1f5;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.fxfer-bar-inner {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #3370ff, #5b8cff);
+  transition: width .3s ease;
+}
+.fxfer-detail { color: #646a73; font-size: 12px; line-height: 1.55; word-break: break-word; white-space: pre-wrap; max-height: 280px; overflow: auto; }
+.fxfer-result { margin-top: 8px; line-height: 1.6; word-break: break-all; }
+.fxfer-result a { color: #3370ff; text-decoration: none; }
+.fxfer-result a:hover { text-decoration: underline; }
+.fxfer-diff {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.fxfer-diff-ok { background: #e8f8ef; color: #1a7f37; }
+.fxfer-diff-warn { background: #fff7e8; color: #b54708; }
+.fxfer-diff-bad { background: #fff1f0; color: #d83931; }
+.fxfer-copy-diff {
+  margin-top: 8px;
+  border: 1px solid #d0d3d6;
+  background: #fff;
+  color: #1f2329;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.fxfer-copy-diff:hover { border-color: #3370ff; color: #3370ff; }
+
+.fxfer-pick-label { font-weight: 600; margin-bottom: 6px; }
+.fxfer-pick-path {
+  color: #646a73;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.fxfer-pick-nav { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.fxfer-pick-up {
+  border: none;
+  background: transparent;
+  color: #3370ff;
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
+.fxfer-folder-list {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid #e8e9e9;
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+.fxfer-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f1f5;
+}
+.fxfer-folder-row:last-child { border-bottom: none; }
+.fxfer-folder-row:hover { background: #f5f6f7; }
+.fxfer-folder-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fxfer-folder-enter {
+  color: #8f959e;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0 4px;
+  user-select: none;
+}
+.fxfer-folder-enter:hover { color: #3370ff; }
+.fxfer-pick-go {
+  width: 100%;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  background: #3370ff;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.fxfer-pick-go:hover { background: #2b5fd9; }
+.fxfer-pick-hint {
+  color: #8f959e;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 8px 4px;
+}
+.fxfer-pick-err { color: #d83931; }

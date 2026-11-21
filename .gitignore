@@ -1,0 +1,30 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+*.code-workspace
+
+# Logs / temp
+*.log
+npm-debug.log*
+tmp/
+temp/
+.cache/
+
+# Local secrets / env (if ever added)
+.env
+.env.*
+!.env.example
+*.pem
+credentials.json
+
+# Packaging artifacts
+*.zip
+*.crx
+*.pem.bak
+dist/
+release/
