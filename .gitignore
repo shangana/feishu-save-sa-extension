@@ -28,3 +28,4 @@ credentials.json
 *.pem.bak
 dist/
 release/
+docs/
