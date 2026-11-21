@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "飞书文档转存",
-  "version": "2.28.6",
+  "version": "2.28.7",
   "description": "飞书文档转存：优先原生复制；禁止复制时高保真重建。零配置。",
   "permissions": [
     "storage",

@@ -1,4 +1,6 @@
-/* 飞书文档转存 - 样式（前缀 fxfer- 避免冲突） */
+/* 飞书文档转存 - 样式（前缀 fxfer- 避免冲突）
+ * Copyright (c) 2026 sa
+ */
 
 .fxfer-btn {
   position: fixed;

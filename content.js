@@ -1,4 +1,5 @@
 /* 飞书文档转存 - content script
+ * Copyright (c) 2026 sa
  * 结果导向：转存后内容/样式与原文一致。
  * 1) 能原生 → explorer/v2/clone（服务端原件）
  * 2) 禁止创建副本 → 全量数据/DOM 高保真重建
@@ -7,11 +8,11 @@
 (() => {
   'use strict';
 
-  const CLIP_VERSION = '1.0.75';
-  const EXT_VERSION = '2.28.6';
+  const CLIP_VERSION = '1.0.76';
+  const EXT_VERSION = '2.28.7';
   const DOM_ENOUGH_LINKS = 3;
   const LINK_RATIO_ABORT = 0.7;
-  const CLIENT_VARS_PAGE_LIMIT = 1000; // 续页兜底（对齐 LarkSnap），真正退出看 has_more/新块
+  const CLIENT_VARS_PAGE_LIMIT = 1000; // 续页兜底，真正退出看 has_more/新块
   const SKIP_FETCH_CONCURRENCY = 4;
   const SKIP_FETCH_MAX_ROUNDS = 40;
   const SKIP_FETCH_MAX_REQUESTS = 5000;
@@ -33,7 +34,7 @@
   const CHAR_ABS_SLACK = 2;        // 绝对字数容差（短文避免误杀）
   // 无法可靠还原结构、但至少要保住可见文字的块
   const FALLBACK_BLOCK_TYPES = /^(equation|whiteboard|sheet|bitable|iframe|isv|addon|synced_source|mindnote|diagram|chart|base|ai|poll|task|meeting_minutes)$/i;
-  const REQ_SOURCE = 'feishu-clipper';
+  const REQ_SOURCE = 'sa-feishu-save';
   const COVER = '//lf-package-cn.feishucdn.com/obj/feishu-static/ccm-vmok/web/feishu.ico';
   // 软目标：超过就自动加压，尽量压到这个体积再上传（兼顾飞书解析与浏览器内存）
   const HTML_SOFT_TARGET = 80 * 1024 * 1024;
@@ -1371,7 +1372,7 @@
         await sleep(260);
         await scrollInnerContainers();
         absorb(collectVisibleSnapshotPieces(seenIds));
-        onProgress && onProgress('采集对比快照 ' + Math.min(99, Math.round((i / 120) * 100)) + '%…');
+        onProgress && onProgress('生成对照快照 ' + Math.min(99, Math.round((i / 120) * 100)) + '%…');
         if (sc.scrollTop === last) stuck++; else stuck = 0;
         last = sc.scrollTop;
         if (sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 4) {
@@ -1671,7 +1672,7 @@
         if (!ok && a < 3) await sleep(2000 * a);
       }
       if (!ok) throw new Error('云空间上传分块失败（' + (i + 1) + '/' + nb + '）：' + last);
-      onProgress && onProgress('上传到云空间 ' + (i + 1) + '/' + nb + '…');
+      onProgress && onProgress('写入云空间 ' + (i + 1) + '/' + nb + '…');
     }
     const fr = await fetchWithTimeout('/space/api/box/upload/finish/', {
       method: 'POST', credentials: 'include',
@@ -1704,14 +1705,14 @@
       const allUrl = '/space/api/box/stream/download/all/' + m.token + '/';
       const originFileUrl = absolutizeHref('/file/' + m.token);
       let block = '';
-      onProgress && onProgress('读取素材 ' + i + '/' + ids.length + '…', 42);
+      onProgress && onProgress('拉取素材 ' + i + '/' + ids.length + '…', 42);
       try {
         let dl = null;
         let lastErr = null;
         for (const u of [allUrl, previewUrl]) {
           try {
             dl = await fetchMediaBytes(u, (t, p) => onProgress && onProgress(t, 46),
-              '下载' + (/\.(mp4|mov|webm|pdf)$/i.test(m.name) ? (/\.pdf$/i.test(m.name) ? 'PDF' : '视频') : '素材'));
+              '获取' + (/\.(mp4|mov|webm|pdf)$/i.test(m.name) ? (/\.pdf$/i.test(m.name) ? 'PDF' : '视频') : '素材'));
             if (dl && dl.bytes && dl.bytes.length) break;
           } catch (e) { lastErr = e; dl = null; }
         }
@@ -1725,7 +1726,7 @@
           block = '<p><b>【文件】' + esc(m.name) + '</b></p><pre><code>' + esc(txt) + '</code></pre>';
         } else if (isVideo) {
           if (bytes.length > 200 * 1024 * 1024) throw new Error('视频超过 200MB，已跳过');
-          onProgress && onProgress('保存视频到你的云空间（' + (bytes.length / 1048576).toFixed(1) + 'MB）…', 46);
+          onProgress && onProgress('把视频存入你的云空间（' + (bytes.length / 1048576).toFixed(1) + 'MB）…', 46);
           const vname = /\.[a-z0-9]{2,5}$/i.test(m.fileName) ? m.fileName : m.fileName + '.mp4';
           const ft = await uploadToDrive(bytes, vname, (t) => onProgress && onProgress(t, 47));
           uploadedVideos.push({ fileToken: ft, name: m.name });
@@ -1734,7 +1735,7 @@
         } else {
           // PDF / 其它附件：上传到自己的云空间，保留可下载链接（以前直接丢弃）
           if (bytes.length > MAX_MEDIA_BYTES) throw new Error('附件超过上限，已跳过');
-          onProgress && onProgress('保存附件到你的云空间（' + (bytes.length / 1048576).toFixed(1) + 'MB）…', 46);
+          onProgress && onProgress('把附件存入你的云空间（' + (bytes.length / 1048576).toFixed(1) + 'MB）…', 46);
           let fname = m.fileName || m.name || '附件';
           if (isPdf && !/\.pdf$/i.test(fname)) fname += '.pdf';
           if (!/\.[a-z0-9]{2,5}$/i.test(fname)) fname += '.bin';
@@ -1946,12 +1947,12 @@
     panelEl.innerHTML = `
       <div class="fxfer-head">
         <span class="fxfer-title">转存到我的飞书 <small class="fxfer-ver">v${EXT_VERSION}</small></span>
-        ${showCancel ? '<span class="fxfer-cancel" title="中止本次转存">中止</span>' : ''}
+        ${showCancel ? '<span class="fxfer-cancel" title="停止本次同步">停止</span>' : ''}
         <span class="fxfer-close" title="收起">×</span>
       </div>
       <div class="fxfer-pick" style="display:none"></div>
       <div class="fxfer-progress-wrap">
-        <div class="fxfer-status">准备中…</div>
+        <div class="fxfer-status">启动中…</div>
         <div class="fxfer-bar"><div class="fxfer-bar-inner"></div></div>
         <div class="fxfer-detail"></div>
         <div class="fxfer-result"></div>
@@ -2130,7 +2131,7 @@
       const dest = await chooseFolder(ui);
       if (!dest || !panelEl) return; // 用户取消/关闭
       ui.showProgress();
-      ui.status('准备转存…', 2);
+      ui.status('开始同步…', 2);
       ui.detail('目标：' + (dest.path || '我的空间'));
 
       const res = await transfer({
@@ -2141,9 +2142,9 @@
       const url = res.docUrl;
       let moveNote = '';
       if (res.nativePlaced) {
-        moveNote = '位置：' + (dest.path || '我的空间') + '（原生复制已落盘）';
+        moveNote = '位置：' + (dest.path || '我的空间') + '（服务端副本已落盘）';
       } else if (dest.token) {
-        ui.status('正在移动到所选文件夹…', 96);
+        ui.status('正在归位到所选文件夹…', 96);
         const tok = docTokenFromUrl(url);
         const mv = await moveDocxToFolder(tok, dest.token);
         if (mv.ok && !mv.skipped) {
@@ -2156,9 +2157,9 @@
       }
 
       const sourceNote = res.nativeCopy
-        ? '方式：原生复制'
-        : '方式：高保真重建（源文档禁止原生复制）';
-      ui.status('✅ 转存成功', 100);
+        ? '方式：服务端副本'
+        : '方式：精细重建（源文档禁止创建副本）';
+      ui.status('✅ 同步完成', 100);
       ui.detail([sourceNote, moveNote].filter(Boolean).join('\n'));
       ui.result(`新文档：<a href="${url}" target="_blank">${url}</a>`);
       if (res.videos && res.videos.length) {
@@ -2170,7 +2171,7 @@
     } catch (e) {
       if (panelEl) {
         ui.showProgress();
-        ui.status('❌ ' + (e && e.message ? e.message : '转存失败'), 0);
+        ui.status('❌ ' + (e && e.message ? e.message : '同步失败'), 0);
         ui.detail(e && e.detail ? e.detail : '');
       }
     } finally {
@@ -2192,7 +2193,7 @@
     const sc = getScroller();
     if (!sc) { const e = new Error('未找到文档容器（.bear-web-x-container）'); e.detail = '请确认当前是文档正文页，且已加载完成。'; throw e; }
 
-    onProgress('等待文档加载…', 5);
+    onProgress('等待页面就绪…', 5);
     let prevSh = -1, stable = 0;
     for (let i = 0; i < 40; i++) {
       await sleep(1200);
@@ -2341,12 +2342,12 @@
       }
     };
 
-    onProgress('采集正文（第 1 遍）…', 12);
+    onProgress('扫描正文 · 第1轮…', 12);
     await grab();
     let lastTop = -1, stuck = 0, bottomStreak = 0;
     const t0 = Date.now();
     for (let i = 0; i < 420; i++) {
-      if (window.__fxferAbort) throw new Error('已中止');
+      if (window.__fxferAbort) throw new Error('已停止');
       if (Date.now() - t0 > 12 * 60 * 1000) break;          // 第一遍最多 12 分钟
       const prevSh = sc.scrollHeight;
       sc.scrollTop = Math.min(sc.scrollHeight, sc.scrollTop + Math.max(220, Math.floor(sc.clientHeight * 0.6)));
@@ -2354,7 +2355,7 @@
       await scrollInnerContainers();
       await waitForImgs();
       await grab();
-      onProgress('采集正文（滚动中）…', 12 + Math.min(28, 12 + (i / 600) * 28));
+      onProgress('滚动扫描正文中…', 12 + Math.min(28, 12 + (i / 600) * 28));
       const grew = sc.scrollHeight > prevSh;
       const atBottom = sc.scrollTop + sc.clientHeight >= sc.scrollHeight - 4;
       if (grew) { bottomStreak = 0; } else if (atBottom) { bottomStreak++; }
@@ -2364,13 +2365,13 @@
       if (stuck > 14) break;
     }
 
-    onProgress('补漏（第 2 遍）…', 42);
+    onProgress('复核扫读 · 第2轮…', 42);
     sc.scrollTop = 0;
     await sleep(600);
     let b2 = 0;
     const t1 = Date.now();
     for (let i = 0; i < 320; i++) {
-      if (window.__fxferAbort) throw new Error('已中止');
+      if (window.__fxferAbort) throw new Error('已停止');
       if (Date.now() - t1 > 8 * 60 * 1000) break;            // 第二遍最多 8 分钟
       const prevSh2 = sc.scrollHeight;
       sc.scrollTop = Math.min(sc.scrollHeight, sc.scrollTop + Math.max(180, Math.floor(sc.clientHeight * 0.4)));
@@ -2386,12 +2387,12 @@
     }
 
     // 第三遍：逐个表格单元格强制滚入视口渲染（懒渲染的单元格/媒体块靠这一步补齐）
-    onProgress('补漏（第 3 遍 · 单元格）…', 44);
+    onProgress('复核表格单元格 · 第3轮…', 44);
     {
       const seenCells = new Set();
       const t2 = Date.now();
       for (let round = 0; round < 6; round++) {
-        if (window.__fxferAbort) throw new Error('已中止');
+        if (window.__fxferAbort) throw new Error('已停止');
         if (Date.now() - t2 > 4 * 60 * 1000) break;
         const cells = [...document.querySelectorAll('[data-block-type="table_cell"], .docx-table_cell-block')];
         let progressed = false;
@@ -2449,7 +2450,7 @@
       covered.add(sid);
     }
     // 组装前：尽量在同一布局下重测各表单元格相对表格的坐标，杜绝表头被排到最下
-    onProgress('整理表格行列…', 45);
+    onProgress('整理表格结构…', 45);
     for (const [tid] of tableOrder) {
       const tableEl = document.querySelector(`${SCROLL_SEL} [data-block-id="${tid}"]`);
       if (!tableEl) continue;
@@ -2514,11 +2515,11 @@
       .replace(/本文档?尚未被他人提及。?/g, '');
 
     // 查漏补缺：原文块有字但 HTML 找不到 → 追加，优先保证不丢字
-    onProgress('查漏补缺（防丢字）…', 46);
+    onProgress('内容校对（防漏字）…', 46);
     const salvaged = salvageMissingTextIntoHtml(html);
     html = salvaged.html;
     if (salvaged.added) {
-      onProgress('已补回疑似缺失段落 ' + salvaged.added + ' 处', 47);
+      onProgress('已补回疑似漏段 ' + salvaged.added + ' 处', 47);
     }
 
     const inventory = inventoryFromDom(document);
@@ -2643,9 +2644,9 @@
     let shrunk = 0;
     let dropped = 0;
     const passes = [
-      { maxDim: 1600, quality: 0.72, label: '二次压缩图片' },
-      { maxDim: 1200, quality: 0.58, label: '强力压缩图片' },
-      { maxDim: 900, quality: 0.45, label: '极限压缩图片' }
+      { maxDim: 1600, quality: 0.72, label: '再次压缩图片' },
+      { maxDim: 1200, quality: 0.58, label: '深度压缩图片' },
+      { maxDim: 900, quality: 0.45, label: '极限压图' }
     ];
 
     for (const pass of passes) {
@@ -2760,7 +2761,7 @@
         e.detail = '网络不稳定导致。可直接重试，会从当前进度继续。';
         throw e;
       }
-      onProgress('上传分块 ' + (i + 1) + '/' + numBlocks + '…', 74 + Math.round(((i + 1) / numBlocks) * 12));
+      onProgress('提交分块 ' + (i + 1) + '/' + numBlocks + '…', 74 + Math.round(((i + 1) / numBlocks) * 12));
     }
 
     let fileToken = null, lastMsg2 = '';
@@ -2788,7 +2789,7 @@
       e.detail = '已尽量压缩图片。可再删掉源文档中部分大图后重试。';
       throw e;
     }
-    onProgress('上传文件（分块）…', 73);
+    onProgress('提交文件（分块）…', 73);
     const fileToken = await chunkedUpload(bytes, title + '.html', onProgress);
 
     const fd = new FormData();
@@ -2826,7 +2827,7 @@
         if (e && e.detail) throw e;
         lastErr = e;
       }
-      if (attempt < 3) { onProgress && onProgress('网络波动，自动重试…', 88); await sleep(2000 * attempt); }
+      if (attempt < 3) { onProgress && onProgress('网络不稳，自动重试…', 88); await sleep(2000 * attempt); }
     }
     const e = new Error('提交失败：网络多次中断，请检查网络后重试');
     e.detail = String(lastErr && (lastErr.message || lastErr)).slice(0, 200);
@@ -2835,7 +2836,7 @@
   async function pollResult(ticket, onProgress) {
     for (let i = 0; i < 60; i++) {
       await sleep(2000);
-      onProgress('等待飞书生成文档…', 88 + Math.min(10, i));
+      onProgress('等待云文档生成…', 88 + Math.min(10, i));
       const r = await fetch('/space/api/parser/wiki/clip/result?_r=' + Date.now() + '&ticket=' + ticket, { credentials: 'include' });
       const t = await r.text();
       if (!t || t.trim() === 'null' || t.trim() === '') continue;
@@ -3807,13 +3808,13 @@
     };
 
     // ① 无 limit 的一次拉取：长文常能直接拿全（本课实测 623 块 / has_more=false）
-    onProgress && onProgress('读取文档数据（全量）…', 8);
+    onProgress && onProgress('拉取文档数据（全量）…', 8);
     let part = unpackClientVars(await feishuGetJson(
       '/space/api/docx/pages/client_vars?id=' + encodeURIComponent(token) + wikiPart
     ));
     absorb(part);
 
-    // ② 若仍有续页，按 LarkSnap 方式穷举 cursor 组合，合并 children 并集
+    // ② 若仍有续页，穷举 cursor 组合，合并 children 并集
     if (part && part.hasMore) {
       let cursor = part.cursor || '';
       let nextCursors = part.nextCursors;
@@ -3823,8 +3824,8 @@
       const rootBlockId = Object.keys(blockMap).find(id => (blockBody(blockMap[id]) || {}).type === 'page')
         || token;
       for (; hasMore && guard < CLIENT_VARS_PAGE_LIMIT; guard++) {
-        if (window.__fxferAbort) throw new Error('已中止');
-        onProgress && onProgress('续读文档数据 ' + (guard + 2) + '…', 10 + Math.min(30, guard));
+        if (window.__fxferAbort) throw new Error('已停止');
+        onProgress && onProgress('继续拉取文档数据 ' + (guard + 2) + '…', 10 + Math.min(30, guard));
         const next = firstCursorOf(nextCursors);
         const variants = [];
         const push = (tag, base, c) => {
@@ -3879,7 +3880,7 @@
         break;
       }
       for (let i = 0; i < pending.length; i += SKIP_FETCH_CONCURRENCY) {
-        if (window.__fxferAbort) throw new Error('已中止');
+        if (window.__fxferAbort) throw new Error('已停止');
         if (skipRequests >= SKIP_FETCH_MAX_REQUESTS) {
           skipTruncated = true;
           break;
@@ -4052,7 +4053,7 @@
       '/space/api/explorer/v3/my_space/root/'
     ];
     for (const u of getUrls) {
-      if (window.__fxferAbort) throw new Error('已中止');
+      if (window.__fxferAbort) throw new Error('已停止');
       try {
         const j = await feishuGetJson(u);
         if (!j || (j.code !== 0 && j.code !== '0')) continue;
@@ -4208,7 +4209,7 @@
    */
   async function tryDriveObjectCopy(source, folderToken, title, onProgress, onDetail) {
     if (!source || !source.token) return { error: '无源 obj_token' };
-    onProgress && onProgress('云盘原生复制…', 6);
+    onProgress && onProgress('云盘一键副本…', 6);
 
     // 用户选了子文件夹就用；根目录 parent_token 传空串
     let parent = folderToken ? String(folderToken) : '';
@@ -4231,9 +4232,9 @@
     let attempt = 0;
 
     for (const p of parentCandidates) {
-      if (window.__fxferAbort) throw new Error('已中止');
+      if (window.__fxferAbort) throw new Error('已停止');
       attempt++;
-      onProgress && onProgress('云盘原生复制 ' + attempt + '…', 6 + Math.min(16, attempt * 3));
+      onProgress && onProgress('云盘一键副本 ' + attempt + '…', 6 + Math.min(16, attempt * 3));
       const fields = {
         obj_token: source.token,
         obj_type: String(objType),
@@ -4258,7 +4259,7 @@
           origin: location.origin,
           at: Date.now()
         });
-        onDetail && onDetail('云盘原生复制成功（explorer/v2/clone）');
+        onDetail && onDetail('云盘一键副本成功（explorer/v2/clone）');
         return {
           url: docUrl,
           method: 'drive_clone',
@@ -4304,9 +4305,9 @@
     const errors = [];
     let attempt = 0;
     for (const target of targets) {
-      if (window.__fxferAbort) throw new Error('已中止');
+      if (window.__fxferAbort) throw new Error('已停止');
       attempt++;
-      onProgress && onProgress('Wiki 原生复制 ' + attempt + '/' + targets.length + '…', 28 + attempt);
+      onProgress && onProgress('知识库服务端副本 ' + attempt + '/' + targets.length + '…', 28 + attempt);
       const body = {
         obj_token: source.token,
         obj_type: Number(source.type) || OBJ_TYPE_DOCX,
@@ -4327,7 +4328,7 @@
           wikiToken: target.wikiToken,
           tag: target.tag
         });
-        onDetail && onDetail('Wiki 原生复制成功（' + target.tag + '）');
+        onDetail && onDetail('知识库服务端副本成功（' + target.tag + '）');
         return { url, method: 'copy_by_obj', attempt, target, raw: j };
       }
       const msg = (j && (j.msg || j.message || j.code)) != null
@@ -4352,10 +4353,10 @@
     title = title.replace(/\s*[-–—]\s*飞书文档\s*$/i, '').trim() || title;
     const folderToken = destFolder && destFolder.token ? String(destFolder.token) : '';
     const preferWiki = !!(destFolder && destFolder.mode === 'wiki' && destFolder.spaceId);
-    onDetail && onDetail('原生复制：obj=' + source.token
+    onDetail && onDetail('服务端副本：obj=' + source.token
       + '，目标=' + ((destFolder && destFolder.path) || '飞书云盘/我的空间'));
 
-    onProgress && onProgress('检查是否允许创建副本…', 4);
+    onProgress && onProgress('检查是否允许生成副本…', 4);
     const perm = await probeDuplicatePermission(source);
     if (perm.ok === false) {
       onDetail && onDetail('预检：源文档 duplicate/copy 权限关闭（' + perm.reason + '）');
@@ -4368,7 +4369,7 @@
     const errors = [];
 
     if (!preferWiki) {
-      onProgress && onProgress('自动复制到飞书云盘…', 6);
+      onProgress && onProgress('自动同步到飞书云盘…', 6);
       const drive = await tryDriveObjectCopy(source, folderToken, title, onProgress, onDetail);
       if (drive && drive.url) return drive;
       if (drive && drive.error) {
@@ -4380,7 +4381,7 @@
     }
 
     if (preferWiki) {
-      onProgress && onProgress('复制到指定知识库…', 8);
+      onProgress && onProgress('同步到指定知识库…', 8);
       const body = {
         obj_token: source.token,
         obj_type: Number(source.type) || OBJ_TYPE_DOCX,
@@ -4399,7 +4400,7 @@
           wikiToken: destFolder.wikiToken || '',
           tag: 'user-url'
         });
-        onDetail && onDetail('Wiki 原生复制成功');
+        onDetail && onDetail('知识库服务端副本成功');
         return { url, method: 'copy_by_obj', placed: true, raw: j };
       }
       const wmsg = (j && (j.msg || j.message || j.code)) != null
@@ -4417,7 +4418,7 @@
     if (perm.ok === false && !errors.length) {
       return { error: '源文档禁止创建副本（预检）', softStop: true, perm };
     }
-    return { error: errors.filter(Boolean).join('；') || '原生复制失败', perm };
+    return { error: errors.filter(Boolean).join('；') || '服务端副本失败', perm };
   }
 
   async function transfer({ progress, detail, destFolder }) {
@@ -4427,12 +4428,12 @@
     if (!sc) { const e = new Error('未找到文档容器'); e.detail = '请刷新页面后重试。'; throw e; }
 
     // ① 能原生就原生；② 禁止复制则高保真重建（只要结果跟原文一致）
-    progress('优先尝试原生对象复制…', 4);
+    progress('优先尝试服务端副本…', 4);
     let nativeFailNote = '';
     try {
       const native = await tryNativeObjectCopy(progress, detail, destFolder);
       if (native && native.url) {
-        detail('原生对象复制成功。');
+        detail('服务端副本已成功。');
         return {
           docUrl: native.url,
           videos: [],
@@ -4445,14 +4446,14 @@
           preCharsOk: true
         };
       }
-      nativeFailNote = (native && native.error) || '原生复制未成功';
+      nativeFailNote = (native && native.error) || '服务端副本未成功';
     } catch (e) {
-      if (e && e.message === '已中止') throw e;
+      if (e && e.message === '已停止') throw e;
       nativeFailNote = (e && e.message) ? e.message : String(e);
     }
 
-    detail('原生不可用（' + nativeFailNote + '）。切换高保真重建…');
-    progress('采集页面正文…', 8);
+    detail('服务端副本不可用（' + nativeFailNote + '）。切换精细重建…');
+    progress('扫描页面正文…', 8);
     let collected = await collectDoc((t, p) => progress(t, p));
     let fromModel = false;
     let modelSnap = null;
@@ -4464,12 +4465,12 @@
     const domChars = countPlainChars(domInventory.plain || '');
 
     try {
-      progress('读取全量文档数据…', 46);
+      progress('拉取完整文档数据…', 46);
       const model = await loadDocModel((t, p) => progress(t, p));
       if (model && model.plain) modelPlainForGate = model.plain;
       if (shouldPreferModel(model, domInventory, collected.html)) {
         if (model.issues && model.issues.length) {
-          const e = new Error('全量文档数据不完整，已中止以免生成残缺文档');
+          const e = new Error('全量文档数据不完整，已停止以免生成残缺文档');
           e.detail = model.issues.join('\n')
             + '\n（已拉嵌套请求 ' + (model.skipRequests || 0)
             + ' 次；缺失表格单元格 ' + (model.missingTableCells || 0) + '）';
@@ -4488,8 +4489,8 @@
         // 仅模型路径用模型样式指纹；DOM 路径不可串用（会误报标题级别）
         srcStyleAtoms = model.styleAtoms || [];
         srcStyleStructure = model.styleStructure || null;
-        detail('采用全量文档数据（' + countPlainChars(model.plain) + ' 字 / '
-          + (model.blocks || 0) + ' 块；页面采集 ' + domChars + ' 字）。');
+        detail('采用完整文档数据（' + countPlainChars(model.plain) + ' 字 / '
+          + (model.blocks || 0) + ' 块；页面扫描 ' + domChars + ' 字）。');
       } else if (model) {
         srcStyleAtoms = [];
         srcStyleStructure = null;
@@ -4508,14 +4509,14 @@
             codes: model.inventory.codes
           });
         }
-        detail('页面采集更完整或数据半残，沿用页面结果（页面 '
+        detail('页面扫描更完整或数据半残，沿用页面结果（页面 '
           + domChars + ' 字 / 数据 ' + countPlainChars(model.plain) + ' 字）。');
       } else {
-        detail('文档数据不可用，沿用页面采集（' + domChars + ' 字）。');
+        detail('文档数据不可用，沿用页面扫描（' + domChars + ' 字）。');
       }
     } catch (e) {
       if (e && /全量文档数据不完整/.test(e.message || '')) throw e;
-      detail('文档数据读取失败，沿用页面采集：' + (e && e.message ? e.message : e));
+      detail('文档数据拉取失败，沿用页面扫描：' + (e && e.message ? e.message : e));
     }
 
     let fromModelHtml = fromModel;
@@ -4546,7 +4547,7 @@
       const before = countHtmlLinks(html);
       html = salvageDomLinksIntoHtml(html, linkSrcHtml);
       const added = countHtmlLinks(html) - before;
-      if (added > 0) detail('已从页面采集回填 ' + added + ' 个链接。');
+      if (added > 0) detail('已从页面扫描回填 ' + added + ' 个链接。');
     }
     const mr = await resolveMediaBlocks(html, collected.mediaMap || new Map(), (t, p) => progress(t, p));
     html = mr.html;
@@ -4593,8 +4594,8 @@
     const preAudit = auditInventories(inventory, full);
     const criticalMissing = preAudit.missing.filter(m => m.kind === '代码块' || m.kind === '标题');
     if (criticalMissing.length) {
-      progress('发现关键内容缺失，已中止上传…', 72);
-      const e = new Error('采集结果缺少 ' + criticalMissing.length + ' 处代码块/标题，已中止以免生成残缺文档');
+      progress('发现关键内容缺失，已停止提交…', 72);
+      const e = new Error('扫描结果缺少 ' + criticalMissing.length + ' 处代码块/标题，已中止以免生成残缺文档');
       e.detail = '请刷新页面后重试。';
       throw e;
     }
@@ -4618,17 +4619,17 @@
     const htmlImgs = (String(full).match(/<img[\s>]/gi) || []).length;
     // 禁止提交空文档：正文无字且无图则中止（此前半残文档数据会导致整篇空白）
     if (htmlChars < 1 && htmlImgs < 1) {
-      progress('待上传内容为空，已中止…', 74);
-      const e = new Error('待上传 HTML 正文为空，已中止，避免生成空白文档');
+      progress('待提交内容为空，已停止…', 74);
+      const e = new Error('待提交 HTML 正文为空，已停止，避免生成空白文档');
       e.detail = '页面采集与文档数据均未得到可用正文。请刷新后重试；若仍失败，把文档链接发我。';
       throw e;
     }
     // 链接门禁：课表类文档几乎全是文档引用；链接大量丢失时中止，避免生成「空壳」
     const fullLinks = countHtmlLinks(full);
     if (expectedLinks >= DOM_ENOUGH_LINKS && fullLinks < Math.ceil(expectedLinks * LINK_RATIO_ABORT)) {
-      progress('待上传链接丢失过多，已中止…', 74);
-      const e = new Error('待上传 HTML 仅保留 ' + fullLinks + '/' + expectedLinks + ' 个链接，已中止');
-      e.detail = '采集阶段有 ' + expectedLinks + ' 个链接，提交前只剩 ' + fullLinks
+      progress('待提交链接丢失过多，已停止…', 74);
+      const e = new Error('待提交 HTML 仅保留 ' + fullLinks + '/' + expectedLinks + ' 个链接，已中止');
+      e.detail = '扫描阶段有 ' + expectedLinks + ' 个链接，提交前只剩 ' + fullLinks
         + ' 个。请刷新后重试；若仍失败，把文档链接发我。';
       throw e;
     }
@@ -4637,10 +4638,10 @@
       || countPlainChars(modelPlainForGate || '');
     if (srcCharsForGate > 0) {
       if (htmlChars < srcCharsForGate * CHAR_RATIO_ABORT) {
-        progress('待上传内容字数不足，已中止…', 74);
-        const e = new Error('待上传内容仅保留原文 '
+        progress('待提交字数不足，已停止…', 74);
+        const e = new Error('待提交内容仅保留原文 '
           + Math.round((htmlChars / srcCharsForGate) * 100) + '% 的字数，已中止以免生成残缺文档');
-        e.detail = '原文 ' + srcCharsForGate + ' 字，待上传 ' + htmlChars + ' 字。请刷新后重试。';
+        e.detail = '原文 ' + srcCharsForGate + ' 字，待提交 ' + htmlChars + ' 字。请刷新后重试。';
         throw e;
       }
     }
@@ -4654,11 +4655,11 @@
     if (gateSrcPlain && countPlainChars(gateSrcPlain) >= 20) {
       const fid = charLineFidelity(gateSrcPlain, htmlInv.plain || '');
       if (!fid.ok) {
-        progress('逐行核对未通过，已中止…', 74);
+        progress('逐行校验未通过，已停止…', 74);
         const miss = (fid.missingLines || []).slice(0, 8).map(x =>
           'L' + x.index + '(' + x.chars + '字): ' + x.text
         ).join('\n');
-        const e = new Error('逐行逐字核对失败：字数保留 '
+        const e = new Error('逐行逐字校验失败：字数保留 '
           + Math.round(fid.ratio * 100) + '%、行保留 '
           + Math.round(fid.lineRatio * 100) + '%，已中止');
         e.detail = '原文 ' + fid.srcChars + ' 字 / ' + fid.srcLines + ' 行，待上传 '
@@ -4667,7 +4668,7 @@
           + '\n请刷新后重试；若仍失败把文档链接发我。';
         throw e;
       }
-      detail('逐行逐字核对通过（' + fid.srcChars + ' 字 / ' + fid.srcLines + ' 行）。');
+      detail('逐行逐字校验通过（' + fid.srcChars + ' 字 / ' + fid.srcLines + ' 行）。');
     }
     // 代码块全文门禁（只在真缺字/缺行时中止；目标更长不算失败）
     const modelCodes = (inventory && inventory.codes) || [];
@@ -4682,15 +4683,15 @@
       }
     });
     if (codeMiss.length) {
-      progress('代码块逐行核对未通过，已中止…', 74);
-      const e = new Error('代码块逐行核对失败（' + codeMiss.length + ' 处），已中止以免少字');
+      progress('代码块逐行校验未通过，已停止…', 74);
+      const e = new Error('代码块逐行校验失败（' + codeMiss.length + ' 处），已中止以免少字');
       e.detail = codeMiss.slice(0, 6).join('\n') + '\n请刷新后重试。';
       throw e;
     }
 
     // 样式：尽量自动改正；改不完只告警继续上传（内容门禁已守住字/链/代码）
     if (SF && srcStyleAtoms && srcStyleAtoms.length) {
-      progress('内容+样式比对并自动改正…', 75);
+      progress('样式校对并自动修正…', 75);
       const bodyMatch = String(full).match(/<body[^>]*>([\s\S]*)<\/body>/i);
       const bodyHtml = bodyMatch ? bodyMatch[1] : full;
       const fixed = SF.compareAndFix(srcStyleAtoms, srcStyleStructure, bodyHtml);
@@ -4706,7 +4707,7 @@
         const miss = (fixed.missing || []).slice(0, 4).map(x =>
           (x.issue || '样式差') + '：「' + (x.text || '').slice(0, 30) + '」'
         ).join('；');
-        detail('样式仍有差异（已尽量改正，继续上传）'
+        detail('样式仍有差异（已尽量修正，继续提交）'
           + (miss ? '：' + miss : '')
           + ((fixed.structWarn || []).length ? '；结构告警 ' + fixed.structWarn.length : ''));
       } else {

@@ -1,5 +1,6 @@
 /**
  * 内容+样式指纹：从 HTML 抽原子 → 与源比对 → 自动补样式 → 再审。
+ * Copyright (c) 2026 sa
  * 浏览器：globalThis.FxferStyleFidelity；Node：module.exports。
  *
  * 目标边界（诚实）：

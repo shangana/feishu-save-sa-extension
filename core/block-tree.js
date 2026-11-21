@@ -1,6 +1,6 @@
 /**
  * 飞书 block_map 纯函数（Node 自测 + content script 共用）。
- * 借鉴 LarkSnap：children 并集、对象形 children、根序补全、表格 cell_set。
+ * Copyright (c) 2026 sa
  * 浏览器：挂到 globalThis.FxferBlockTree；Node：module.exports。
  */
 (function (root, factory) {

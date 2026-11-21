@@ -1,4 +1,5 @@
 /* 飞书文档转存 - 后台脚本
+ * Copyright (c) 2026 sa
  * 转存完成后：把视频下载到本地 → 打开新文档 → 用 Chrome 调试协议(CDP)发"可信"鼠标/拖拽事件，
  * 让视频落在文档里原来的位置（合成事件做不到可靠落点，必须用 CDP）。
  */
@@ -30,7 +31,7 @@ function cdp(tabId, method, params) {
 }
 
 async function downloadToDisk(url, name) {
-  const id = await chrome.downloads.download({ url, filename: 'fxfer/' + name, conflictAction: 'overwrite' });
+  const id = await chrome.downloads.download({ url, filename: 'sa-feishu-save/' + name, conflictAction: 'overwrite' });
   for (let i = 0; i < 180; i++) {
     await sleep(1000);
     const [it] = await chrome.downloads.search({ id });

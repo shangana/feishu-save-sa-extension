@@ -4,6 +4,8 @@
 
 零配置：不需要创建飞书应用，不需要填 App ID / Secret，直接用当前浏览器已登录的飞书身份。
 
+Author / Copyright: **sa**（MIT License）
+
 
 ## 安装
 

@@ -1,5 +1,6 @@
 /**
  * 转存 HTML 规范化：链接（drive-stream → /file/token）、飞书 textHighlight 颜色。
+ * Copyright (c) 2026 sa
  * 浏览器：globalThis.FxferHtmlNormalize；Node：module.exports。
  */
 (function (root, factory) {
