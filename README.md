@@ -4,6 +4,7 @@
 
 零配置：不需要创建飞书应用，不需要填 App ID / Secret，直接用当前浏览器已登录的飞书身份。
 
+
 ## 安装
 
 1. 打开 Chrome，地址栏输入 `chrome://extensions/` 回车
